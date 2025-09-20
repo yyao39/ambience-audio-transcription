@@ -55,7 +55,7 @@ class JobProcessor:
         self._pending_jobs.add(job_id)
         await self._queue.put(job_id)
 
-    async def resume_incomplete_jobs(self) -> None:
+    async def resume_incomplete_jobs(self) -> List[str]:
         async with AsyncSessionLocal() as session:
             await session.execute(
                 update(AudioChunk)
@@ -67,8 +67,10 @@ class JobProcessor:
                 select(Job.id).where(Job.status.in_([JobStatus.QUEUED, JobStatus.IN_PROGRESS]))
             )
             job_ids = [row[0] for row in result.all()]
-        for job_id in job_ids:
-            await self.enqueue_job(job_id)
+        return job_ids
+
+    async def process_job(self, job_id: str) -> None:
+        await self._process_job(job_id)
 
     async def _worker_loop(self) -> None:
         while not self._shutdown_event.is_set():

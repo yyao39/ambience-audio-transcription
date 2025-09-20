@@ -33,6 +33,10 @@ class TranscriptResult(BaseModel):
     completedTime: Optional[datetime]
 
 
+class ProcessTranscriptionTask(BaseModel):
+    jobId: str = Field(..., min_length=1)
+
+
 def build_transcript_result(job: Job) -> TranscriptResult:
     ordered_statuses: "OrderedDict[str, ChunkStatus]" = OrderedDict()
     transcript_parts = []

@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from .asr_client import ASRClient
 from .database import AsyncSessionLocal, init_db
 from .models import AudioChunk, Job, JobStatus
-from .schemas import TranscribeRequest, TranscribeResponse, TranscriptResult, build_transcript_result
+from .schemas import (
+    ProcessTranscriptionTask,
+    TranscribeRequest,
+    TranscribeResponse,
+    TranscriptResult,
+    build_transcript_result,
+)
+from .task_queue import TaskQueueError, TranscriptionTaskQueue
 from .worker import JobProcessor
 
 app = FastAPI(title="Audio Transcription Service")
@@ -22,6 +31,7 @@ asr_client = ASRClient(
     permanent_failures={"bad_audio_segment"},
 )
 job_processor = JobProcessor(asr_client)
+task_queue: TranscriptionTaskQueue | None = None
 
 
 async def get_session():
@@ -29,16 +39,30 @@ async def get_session():
         yield session
 
 
+def get_task_queue() -> TranscriptionTaskQueue:
+    if task_queue is None:
+        raise RuntimeError("Task queue is not initialized")
+    return task_queue
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     await init_db()
-    await job_processor.start()
-    await job_processor.resume_incomplete_jobs()
+    global task_queue
+    task_queue = TranscriptionTaskQueue()
+    job_ids = await job_processor.resume_incomplete_jobs()
+    for job_id in job_ids:
+        try:
+            await run_in_threadpool(get_task_queue().enqueue, job_id)
+        except TaskQueueError:
+            logging.exception("Failed to enqueue transcription job %s during startup", job_id)
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     await job_processor.stop()
+    global task_queue
+    task_queue = None
 
 
 @app.post("/transcribe", response_model=TranscribeResponse, status_code=202)
@@ -52,8 +76,27 @@ async def create_transcription_job(
         chunk = AudioChunk(job_id=job_id, sequence=index, audio_path=audio_path)
         session.add(chunk)
     await session.commit()
-    await job_processor.enqueue_job(job_id)
+    try:
+        queue = get_task_queue()
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Task queue is not configured",
+        ) from exc
+    try:
+        await run_in_threadpool(queue.enqueue, job_id)
+    except TaskQueueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to enqueue transcription task",
+        ) from exc
     return TranscribeResponse(jobId=job_id)
+
+
+@app.post("/tasks/process-transcription", status_code=204)
+async def process_transcription_task(payload: ProcessTranscriptionTask) -> Response:
+    await job_processor.process_job(payload.jobId)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/transcript/{job_id}", response_model=TranscriptResult)
