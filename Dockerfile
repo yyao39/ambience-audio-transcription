@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim
+FROM python:3.11
 
 # Disable output buffering and set up a working directory
 ENV PYTHONUNBUFFERED=1 \
