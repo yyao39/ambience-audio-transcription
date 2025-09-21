@@ -47,18 +47,17 @@ async def on_shutdown() -> None:
 async def create_transcription_job(request: TranscribeRequest) -> TranscribeResponse:
     job_id = str(uuid4())
 
-    # for index, audio_path in enumerate(request.audioChunkPaths):
-    #     chunk = AudioChunk(job_id=job_id, sequence=index, audio_path=audio_path)
-
-    create_http_task(
-        project="ambience-audio-transcription",
-        location="us-west1",
-        queue="speech-recognition-task-queue",
-        url="https://asr-test-847346105312.us-west1.run.app",
-        json_payload={
-            "name": job_id
-        }
-    )
+    for index, audio_path in enumerate(request.audioChunkPaths):
+        print("{}: {}".format(index, audio_path))
+        create_http_task(
+            project="ambience-audio-transcription",
+            location="us-west1",
+            queue="speech-recognition-task-queue",
+            url="https://asr-test-847346105312.us-west1.run.app",
+            json_payload={
+                "audio_path": audio_path
+            }
+        )
 
     return TranscribeResponse(jobId=job_id)
 
