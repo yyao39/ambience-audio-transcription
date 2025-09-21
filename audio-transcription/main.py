@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import List, Optional
 from uuid import uuid4
 
@@ -48,7 +49,7 @@ async def create_transcription_job(request: TranscribeRequest) -> TranscribeResp
     job_id = str(uuid4())
 
     for index, audio_path in enumerate(request.audioChunkPaths):
-        print("{}: {}".format(index, audio_path))
+        logging.info("ASR task for part {}: {}".format(index, audio_path))
         create_http_task(
             project="ambience-audio-transcription",
             location="us-west1",

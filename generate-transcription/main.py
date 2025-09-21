@@ -1,4 +1,5 @@
 import functions_framework
+import logging
 
 
 @functions_framework.http
@@ -15,7 +16,8 @@ def generate_transcript(request):
     request_json = request.get_json(silent=True)
 
     if not request_json:
-        print("request json is empty")
+        logging.info("request json is empty")
         return "request json is empty"
 
+    logging.info("request json: {}".format(request_json))
     return 'echo {}'.format(request_json)
