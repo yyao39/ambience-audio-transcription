@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Mapping, Optional
 
 from pydantic import BaseModel, Field, validator
 
-from .models import ChunkStatus, Job, JobStatus
+from .models import ChunkStatus, JobStatus
 
 
 class TranscribeRequest(BaseModel):
@@ -34,19 +34,28 @@ class TranscriptResult(BaseModel):
     completedTime: Optional[datetime]
 
 
-def build_transcript_result(job: Job) -> TranscriptResult:
+def build_transcript_result(job: Mapping[str, Any]) -> TranscriptResult:
     ordered_statuses: "OrderedDict[str, ChunkStatus]" = OrderedDict()
-    transcript_parts = []
-    for chunk in sorted(job.chunks, key=lambda c: c.sequence):
-        ordered_statuses[chunk.audio_path] = chunk.status
-        if chunk.transcript_text:
-            transcript_parts.append(chunk.transcript_text)
-    transcript_text = "\n".join(transcript_parts)
+    chunk_status_map = job.get("chunkStatuses", {}) or {}
+    audio_paths = job.get("audioChunkPaths") or []
+
+    if audio_paths:
+        for audio_path in audio_paths:
+            status_value = chunk_status_map.get(audio_path, ChunkStatus.PENDING.value)
+            ordered_statuses[audio_path] = ChunkStatus(status_value)
+    else:
+        for audio_path, status_value in sorted(chunk_status_map.items()):
+            ordered_statuses[audio_path] = ChunkStatus(status_value)
+
+    transcript_text = job.get("transcriptText", "") or ""
+    job_status = JobStatus(job.get("jobStatus", JobStatus.QUEUED.value))
+    completed_time = job.get("completedTime")
+
     return TranscriptResult(
-        jobId=job.id,
-        userId=job.user_id,
+        jobId=job.get("jobId") or job.get("id"),
+        userId=job.get("userId"),
         transcriptText=transcript_text,
         chunkStatuses=dict(ordered_statuses),
-        jobStatus=job.status,
-        completedTime=job.completed_at,
+        jobStatus=job_status,
+        completedTime=completed_time,
     )

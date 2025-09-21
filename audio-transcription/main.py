@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from google.cloud import firestore
 
 from .asr_client import ASRClient
-from .database import AsyncSessionLocal, init_db
-from .models import AudioChunk, Job, JobStatus
+from .database import get_collection, init_db
+from .models import ChunkStatus, JobStatus
 from .schemas import (
     TranscribeRequest,
     TranscribeResponse,
@@ -23,13 +23,13 @@ from .task_queue import create_http_task
 import google.cloud.logging
 
 # Instantiates a client
-client = google.cloud.logging.Client()
+logging_client = google.cloud.logging.Client()
 
 # Retrieves a Cloud Logging handler based on the environment
 # you're running in and integrates the handler with the
 # Python logging module. By default this captures all logs
 # at INFO level and higher
-client.setup_logging()
+logging_client.setup_logging()
 
 app = FastAPI(title="Audio Transcription Service")
 
@@ -41,9 +41,10 @@ asr_client = ASRClient(
 )
 
 
-async def get_session():
-    async with AsyncSessionLocal() as session:
-        yield session
+async def get_transcription_collection():
+    """Dependency that yields the Firestore collection for transcripts."""
+
+    yield get_collection()
 
 
 @app.on_event("startup")
@@ -62,10 +63,30 @@ async def on_shutdown() -> None:
 
 @app.post("/transcribe", response_model=TranscribeResponse, status_code=202)
 async def create_transcription_job(
-    request: TranscribeRequest
+    request: TranscribeRequest,
+    collection=Depends(get_transcription_collection),
 ) -> TranscribeResponse:
     job_id = str(uuid4())
+    now = datetime.utcnow()
+    chunk_statuses = {
+        audio_path: ChunkStatus.PENDING.value for audio_path in request.audioChunkPaths
+    }
 
+    await collection.document(job_id).set(
+        {
+            "jobId": job_id,
+            "userId": request.userId,
+            "jobStatus": JobStatus.QUEUED.value,
+            "transcriptText": "",
+            "chunkStatuses": chunk_statuses,
+            "audioChunkPaths": request.audioChunkPaths,
+            "completedTime": None,
+            "createdAt": now,
+            "updatedAt": now,
+        }
+    )
+
+    task_name = ""
     for index, audio_path in enumerate(request.audioChunkPaths):
         task = create_http_task(
             project="ambience-audio-transcription",
@@ -77,37 +98,40 @@ async def create_transcription_job(
             }
         )
         logging.info("ASR task for {}: {}".format(audio_path, task.name))
+        task_name = task.name
 
-    return TranscribeResponse(jobId=job_id, taskName=task.name)
+    return TranscribeResponse(jobId=job_id, taskName=task_name)
 
 
 @app.get("/transcript/{job_id}", response_model=TranscriptResult)
 async def get_transcript(
     job_id: str,
-    session=Depends(get_session)
+    collection=Depends(get_transcription_collection),
 ) -> TranscriptResult:
-    result = await session.execute(
-        select(Job)
-        .options(selectinload(Job.chunks))
-        .where(Job.id == job_id)
-    )
-    job = result.scalar_one_or_none()
-    if job is None:
+    snapshot = await collection.document(job_id).get()
+    if not snapshot.exists:
         raise HTTPException(status_code=404, detail="Job not found")
-    return build_transcript_result(job)
+    job_data = snapshot.to_dict() or {}
+    job_data.setdefault("jobId", job_id)
+    return build_transcript_result(job_data)
 
 
 @app.get("/transcript/search", response_model=List[TranscriptResult])
 async def search_transcripts(
     jobStatus: Optional[JobStatus] = Query(default=None),
     userId: Optional[str] = Query(default=None),
-    session=Depends(get_session),
+    collection=Depends(get_transcription_collection),
 ) -> List[TranscriptResult]:
-    query = select(Job).options(selectinload(Job.chunks))
+    query = collection
     if jobStatus is not None:
-        query = query.where(Job.status == jobStatus)
+        query = query.where("jobStatus", "==", jobStatus.value)
     if userId is not None:
-        query = query.where(Job.user_id == userId)
-    result = await session.execute(query.order_by(Job.created_at.desc()))
-    jobs = result.scalars().unique().all()
-    return [build_transcript_result(job) for job in jobs]
+        query = query.where("userId", "==", userId)
+    query = query.order_by("createdAt", direction=firestore.Query.DESCENDING)
+
+    jobs: List[TranscriptResult] = []
+    async for snapshot in query.stream():
+        job_data = snapshot.to_dict() or {}
+        job_data.setdefault("jobId", snapshot.id)
+        jobs.append(build_transcript_result(job_data))
+    return jobs
