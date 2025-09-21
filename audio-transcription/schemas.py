@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field, validator
 
@@ -22,6 +22,7 @@ class TranscribeRequest(BaseModel):
 
 class TranscribeResponse(BaseModel):
     jobId: str
+    taskName: str
 
 
 class TranscriptResult(BaseModel):
