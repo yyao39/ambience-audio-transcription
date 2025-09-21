@@ -15,10 +15,10 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
-COPY app ./app
+COPY audio_transcription ./audio_transcription
 
 # Expose the port Cloud Run listens on
 EXPOSE 8080
 
 # Run the FastAPI application with Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "audio_transcription.main:app", "--host", "0.0.0.0", "--port", "8080"]
