@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import enum
+
+
 class JobStatus(str, enum.Enum):
     QUEUED = "queued"
     IN_PROGRESS = "in_progress"
