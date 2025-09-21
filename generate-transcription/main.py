@@ -1,5 +1,6 @@
 import functions_framework
 
+
 @functions_framework.http
 def generate_transcript(request):
     """HTTP Cloud Function.
@@ -17,6 +18,4 @@ def generate_transcript(request):
         print("request json is empty")
         return "request json is empty"
 
-    name = "world"
-    
-    return 'Hello {}!'.format(name)
+    return 'echo {}'.format(request_json)
