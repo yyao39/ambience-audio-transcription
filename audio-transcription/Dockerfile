@@ -14,8 +14,10 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
-COPY audio_transcription ./audio_transcription
+# Copy the application code. The repository stores the FastAPI package in this
+# directory, so copy the whole build context into the expected package path
+# inside the container.
+COPY . ./audio_transcription
 
 # Expose the port Cloud Run listens on
 EXPOSE 8080
