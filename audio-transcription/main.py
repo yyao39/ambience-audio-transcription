@@ -12,8 +12,25 @@ from sqlalchemy.orm import selectinload
 from .asr_client import ASRClient
 from .database import AsyncSessionLocal, init_db
 from .models import AudioChunk, Job, JobStatus
-from .schemas import TranscribeRequest, TranscribeResponse, TranscriptResult, build_transcript_result
+from .schemas import (
+    TranscribeRequest,
+    TranscribeResponse,
+    TranscriptResult,
+    build_transcript_result,
+)
 from .task_queue import create_http_task
+
+# Imports the Cloud Logging client library
+import google.cloud.logging
+
+# Instantiates a client
+client = google.cloud.logging.Client()
+
+# Retrieves a Cloud Logging handler based on the environment
+# you're running in and integrates the handler with the
+# Python logging module. By default this captures all logs
+# at INFO level and higher
+client.setup_logging()
 
 app = FastAPI(title="Audio Transcription Service")
 
@@ -45,7 +62,9 @@ async def on_shutdown() -> None:
 
 
 @app.post("/transcribe", response_model=TranscribeResponse, status_code=202)
-async def create_transcription_job(request: TranscribeRequest) -> TranscribeResponse:
+async def create_transcription_job(
+    request: TranscribeRequest
+) -> TranscribeResponse:
     job_id = str(uuid4())
 
     for index, audio_path in enumerate(request.audioChunkPaths):
@@ -64,7 +83,10 @@ async def create_transcription_job(request: TranscribeRequest) -> TranscribeResp
 
 
 @app.get("/transcript/{job_id}", response_model=TranscriptResult)
-async def get_transcript(job_id: str, session=Depends(get_session)) -> TranscriptResult:
+async def get_transcript(
+    job_id: str,
+    session=Depends(get_session)
+) -> TranscriptResult:
     result = await session.execute(
         select(Job)
         .options(selectinload(Job.chunks))
