@@ -6,16 +6,15 @@ from typing import Self
 from google.cloud import firestore
 
 
-_firestore_client: firestore.AsyncClient | None = None
+firestore_client = firestore.AsyncClient(
+    project="ambience-audio-transcription",
+    database="ambience"
+)
 
 
 def get_firestore_client() -> firestore.AsyncClient:
     """Return a singleton Firestore async client instance."""
-
-    global _firestore_client
-    if _firestore_client is None:
-        _firestore_client = firestore.AsyncClient()
-    return _firestore_client
+    return firestore_client
 
 
 async def init_db() -> None:
