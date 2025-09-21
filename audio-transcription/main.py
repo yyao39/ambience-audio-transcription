@@ -76,9 +76,9 @@ async def create_transcription_job(
                 "audio_path": audio_path
             }
         )
-        logging.info("ASR task for {}: {}".format(audio_path, task))
+        logging.info("ASR task for {}: {}".format(audio_path, task.name))
 
-    return TranscribeResponse(jobId=job_id, task=task)
+    return TranscribeResponse(jobId=job_id, taskName=task.name)
 
 
 @app.get("/transcript/{job_id}", response_model=TranscriptResult)
