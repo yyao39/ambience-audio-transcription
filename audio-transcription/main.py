@@ -64,7 +64,7 @@ async def create_transcription_job(
                 "jobStatus": JobStatus.QUEUED.value,
                 "transcriptText": "",
                 "chunkStatus": ChunkStatus.PENDING.value,
-                "chunkPath": audio_path,
+                "audioPath": audio_path,
                 "completedTime": None,
                 "createdAt": now,
                 "updatedAt": now,

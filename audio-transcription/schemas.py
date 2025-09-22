@@ -39,7 +39,7 @@ def build_transcript_result(
     assert len(results) > 0, "job must contain at least one document"
 
     path_to_status = {
-        row.get("chunkPath"): row.get("chunkPath")
+        row.get("audioPath"): row.get("chunkStatus")
         for row in results
     }
 
