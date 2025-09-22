@@ -7,7 +7,7 @@ from firebase_admin import firestore
 from google.cloud.firestore import Client, CollectionReference
 
 app = firebase_admin.initialize_app()
-firestore_client = firestore.client(database_id="ambience")
+firestore_client = firestore.client(database_id="ambience-ai-standard")
 
 
 def get_firestore_client() -> Client:
