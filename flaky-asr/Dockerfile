@@ -1,26 +1,21 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11
+# Use the official lightweight Node.js 18 image.
+FROM node:18-slim AS base
 
-# Disable output buffering and set up a working directory
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8080
+# Ensure production environment.
+ENV NODE_ENV=production
 
-WORKDIR /app
+# Set the working directory.
+WORKDIR /usr/src/app
 
-# Install system dependencies (if any future build steps require gcc etc.).
-# Keeping this separate allows Docker to cache the layer when requirements don't change.
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Install dependencies first to take advantage of cached layers.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# Copy the application code. The repository stores the FastAPI package in this
-# directory, so copy the whole build context into the expected package path
-# inside the container.
-COPY . ./audio_transcription
+# Copy the rest of the application source.
+COPY . .
 
-# Expose the port Cloud Run listens on
+# Expose the port Cloud Run expects.
 EXPOSE 8080
 
-# Run the FastAPI application with Uvicorn
-CMD ["uvicorn", "audio_transcription.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start the service.
+CMD ["npm", "start"]
