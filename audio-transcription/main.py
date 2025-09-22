@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
 from google.cloud import firestore
 
 from .database import AudioTranscriptions, init_db
@@ -49,12 +49,12 @@ async def on_shutdown() -> None:
 async def create_transcription_job(
     request: TranscribeRequest
 ) -> TranscribeResponse:
-    tasks = []
+    tasks = {}
+    job_id = str(uuid4())
     for index, audio_path in enumerate(request.audioChunkPaths):
-        job_id = str(uuid4())
         now = datetime.now()
-
-        await collection.document(job_id).set(
+        task_id = str(uuid4())
+        await collection.document(task_id).set(
             {
                 "jobId": job_id,
                 "userId": request.userId,
@@ -73,11 +73,12 @@ async def create_transcription_job(
             queue="speech-recognition-task-queue",
             url="https://asr-test-847346105312.us-west1.run.app",
             json_payload={
-                "audio_path": audio_path
+                "audio_path": audio_path,
+                "task_id": task_id
             }
         )
         logging.info("ASR task for {}: {}".format(audio_path, task.name))
-        tasks.append(task.name)
+        tasks[task_id] = task.name
 
     return TranscribeResponse(jobId=job_id, tasks=tasks)
 
@@ -86,11 +87,14 @@ async def create_transcription_job(
 async def get_transcript(
     job_id: str
 ) -> TranscriptResult:
-    snapshot = await collection.document(job_id).get()
+    snapshot = await (
+        collection.where("jobId", "==", job_id)
+        .order_by("createdAt", direction=firestore.Query.DESCENDING)
+    )
     if not snapshot.exists:
         raise HTTPException(status_code=404, detail="Job not found")
-    job_data = snapshot.to_dict() or {}
-    job_data.setdefault("jobId", job_id)
+    job_data = snapshot.to_dict()
+    logging.info("Fetched job data: {}".format(snapshot))
     return build_transcript_result(job_data)
 
 
@@ -106,6 +110,7 @@ async def search_transcripts(
     results = query.order_by("createdAt", direction=firestore.Query.DESCENDING)
 
     jobs: List[TranscriptResult] = []
+    logging.info("search_transcripts returns: {}".format(results))
     async for snapshot in results.stream():
         job_data = snapshot.to_dict() or {}
         job_data.setdefault("jobId", snapshot.id)

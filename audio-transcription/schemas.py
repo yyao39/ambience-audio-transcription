@@ -22,7 +22,7 @@ class TranscribeRequest(BaseModel):
 
 class TranscribeResponse(BaseModel):
     jobId: str
-    tasks: List[str]
+    tasks: Dict[str, str]
 
 
 class TranscriptResult(BaseModel):
