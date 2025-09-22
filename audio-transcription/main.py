@@ -94,8 +94,9 @@ async def get_transcript(
     query = collection.where(filter=FieldFilter("jobId", "==", job_id))
     query = query.order_by("createdAt", direction=firestore.Query.DESCENDING)
     results = query.get()
-    logging.info("Fetched job data: {}".format(results))
-    if not results:
+    for row in results:
+        logging.info("Fetched job data: {}".format(row.to_dict()))
+    if len(results) == 0:
         raise HTTPException(status_code=404, detail="Job not found")
     return build_transcript_result(results)
 

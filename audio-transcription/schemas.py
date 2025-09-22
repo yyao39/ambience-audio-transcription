@@ -40,6 +40,8 @@ def build_transcript_result(job: List[DocumentSnapshot]) -> TranscriptResult:
     # chunk_status_map = job.get("chunkStatuses", {}) or {}
     # audio_paths = job.get("audioChunkPaths") or []
 
+    assert len(job) > 0, "job must contain at least one document"
+
     # if audio_paths:
     #     for audio_path in audio_paths:
     #         status_value = chunk_status_map.get(audio_path, ChunkStatus.PENDING.value)
@@ -53,8 +55,8 @@ def build_transcript_result(job: List[DocumentSnapshot]) -> TranscriptResult:
     # completed_time = job.get("completedTime")
 
     return TranscriptResult(
-        jobId="jobid",
-        userId="yaoy",
+        jobId=job[0].get("jobId"),
+        userId=job[0].get("userId"),
         transcriptText="sdfasd",
         chunkStatuses={},
         jobStatus=JobStatus.QUEUED.value,
