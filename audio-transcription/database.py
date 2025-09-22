@@ -1,18 +1,17 @@
 """Utilities for interacting with the Firestore persistence layer."""
 
 from __future__ import annotations
-from typing import Self
 
 from google.cloud import firestore
 
 
-firestore_client = firestore.AsyncClient(
+firestore_client = firestore.Client(
     project="ambience-audio-transcription",
     database="ambience"
 )
 
 
-def get_firestore_client() -> firestore.AsyncClient:
+def get_firestore_client() -> firestore.Client:
     """Return a singleton Firestore async client instance."""
     return firestore_client
 
@@ -29,7 +28,7 @@ async def init_db() -> None:
 
 class AudioTranscriptions:
     @classmethod
-    def get_collection(cls) -> firestore.AsyncCollectionReference:
+    def get_collection(cls) -> firestore.CollectionReference:
         """Return the collection used to store transcription jobs."""
 
         client = get_firestore_client()

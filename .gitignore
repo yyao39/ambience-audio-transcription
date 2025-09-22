@@ -4,3 +4,4 @@ transcriptions.db
 .env
 
 .vscode/
+venv/

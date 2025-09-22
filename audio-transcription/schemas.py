@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Dict, List, Mapping, Optional
+from google.cloud.firestore import DocumentSnapshot
 
 from pydantic import BaseModel, Field, validator
 
@@ -34,28 +35,28 @@ class TranscriptResult(BaseModel):
     completedTime: Optional[datetime]
 
 
-def build_transcript_result(job: Mapping[str, Any]) -> TranscriptResult:
-    ordered_statuses: "OrderedDict[str, ChunkStatus]" = OrderedDict()
-    chunk_status_map = job.get("chunkStatuses", {}) or {}
-    audio_paths = job.get("audioChunkPaths") or []
+def build_transcript_result(job: List[DocumentSnapshot]) -> TranscriptResult:
+    # ordered_statuses: "OrderedDict[str, ChunkStatus]" = OrderedDict()
+    # chunk_status_map = job.get("chunkStatuses", {}) or {}
+    # audio_paths = job.get("audioChunkPaths") or []
 
-    if audio_paths:
-        for audio_path in audio_paths:
-            status_value = chunk_status_map.get(audio_path, ChunkStatus.PENDING.value)
-            ordered_statuses[audio_path] = ChunkStatus(status_value)
-    else:
-        for audio_path, status_value in sorted(chunk_status_map.items()):
-            ordered_statuses[audio_path] = ChunkStatus(status_value)
+    # if audio_paths:
+    #     for audio_path in audio_paths:
+    #         status_value = chunk_status_map.get(audio_path, ChunkStatus.PENDING.value)
+    #         ordered_statuses[audio_path] = ChunkStatus(status_value)
+    # else:
+    #     for audio_path, status_value in sorted(chunk_status_map.items()):
+    #         ordered_statuses[audio_path] = ChunkStatus(status_value)
 
-    transcript_text = job.get("transcriptText", "") or ""
-    job_status = JobStatus(job.get("jobStatus", JobStatus.QUEUED.value))
-    completed_time = job.get("completedTime")
+    # transcript_text = job.get("transcriptText", "") or ""
+    # job_status = JobStatus(job.get("jobStatus", JobStatus.QUEUED.value))
+    # completed_time = job.get("completedTime")
 
     return TranscriptResult(
-        jobId=job.get("jobId") or job.get("id"),
-        userId=job.get("userId"),
-        transcriptText=transcript_text,
-        chunkStatuses=dict(ordered_statuses),
-        jobStatus=job_status,
-        completedTime=completed_time,
+        jobId="jobid",
+        userId="yaoy",
+        transcriptText="sdfasd",
+        chunkStatuses={},
+        jobStatus=JobStatus.QUEUED.value,
+        completedTime=None,
     )
