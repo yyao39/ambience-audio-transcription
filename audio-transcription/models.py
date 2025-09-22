@@ -15,4 +15,4 @@ class ChunkStatus(str, enum.Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     TRANSIENT_ERROR = "transient_error"
-    PERMANENT_FAILURE = "permanent_failure"
+    FAILED = "failed"
