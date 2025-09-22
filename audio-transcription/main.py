@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from .database import AudioTranscriptions, init_db
 from .models import ChunkStatus, JobStatus
@@ -88,7 +89,7 @@ async def get_transcript(
     job_id: str
 ) -> TranscriptResult:
     snapshot = (
-        collection.where("jobId", "==", job_id)
+        collection.where(filter=FieldFilter("jobId", "==", job_id))
         .order_by("createdAt", direction=firestore.Query.DESCENDING).get()
     )
     logging.info("Fetched job data: {}".format(snapshot))
@@ -104,9 +105,9 @@ async def search_transcripts(
 ) -> List[TranscriptResult]:
     query = collection
     if jobStatus is not None:
-        query = query.where("jobStatus", "==", jobStatus.value)
+        query = query.where(filter=FieldFilter("jobStatus", "==", jobStatus.value))
     if userId is not None:
-        query = query.where("userId", "==", userId)
+        query = query.where(filter=FieldFilter("userId", "==", userId))
 
     results = (
         query.order_by(
