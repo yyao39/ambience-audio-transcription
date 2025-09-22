@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from google.cloud import firestore
+import firebase_admin
+from firebase_admin import firestore
+from google.cloud.firestore import Client
+
+app = firebase_admin.initialize_app()
+firestore_client = firestore.client(database_id="ambience")
 
 
-firestore_client = firestore.Client(
-    project="ambience-audio-transcription",
-    database="ambience"
-)
-
-
-def get_firestore_client() -> firestore.Client:
+def get_firestore_client() -> Client:
     """Return a singleton Firestore async client instance."""
     return firestore_client
 
@@ -22,7 +21,6 @@ async def init_db() -> None:
     Firestore does not require schema creation, but we instantiate the client to
     fail fast if credentials are misconfigured.
     """
-
     get_firestore_client()
 
 
