@@ -1,24 +1,33 @@
-import os
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
+"""Utilities for interacting with the Firestore persistence layer."""
 
-DATABASE_URL = os.getenv("TRANSCRIPTION_DATABASE_URL", "sqlite+aiosqlite:///./transcriptions.db")
+from __future__ import annotations
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    future=True,
-)
+import firebase_admin
+from firebase_admin import firestore
+from google.cloud.firestore import Client, CollectionReference
 
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-)
+app = firebase_admin.initialize_app()
+firestore_client = firestore.client(database_id="ambience-ai-standard")
 
-Base = declarative_base()
+
+def get_firestore_client() -> Client:
+    """Return a singleton Firestore async client instance."""
+    return firestore_client
 
 
 async def init_db() -> None:
-    """Create database tables."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Initialise the Firestore client.
+
+    Firestore does not require schema creation, but we instantiate the client to
+    fail fast if credentials are misconfigured.
+    """
+    get_firestore_client()
+
+
+class AudioTranscriptions:
+    @classmethod
+    def get_collection(cls) -> CollectionReference:
+        """Return the collection used to store transcription jobs."""
+
+        client = get_firestore_client()
+        return client.collection(cls.__name__)
