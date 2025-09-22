@@ -1,5 +1,4 @@
-# Use the official lightweight Node.js 18 image.
-FROM node:18-slim AS base
+FROM node:20-slim
 
 # Ensure production environment.
 ENV NODE_ENV=production
@@ -7,15 +6,18 @@ ENV NODE_ENV=production
 # Set the working directory.
 WORKDIR /usr/src/app
 
-# Install dependencies first to take advantage of cached layers.
-COPY package.json package-lock.json ./
+# Copy application dependency manifests to the container image.
+# A wildcard is used to ensure copying both package.json AND package-lock.json (when available).
+# Copying this first prevents re-running npm install on every code change.
+COPY package*.json ./
+
 RUN npm ci --omit=dev
 
-# Copy the rest of the application source.
-COPY . .
+# Copy local code to the container image.
+COPY . ./
 
 # Expose the port Cloud Run expects.
 EXPOSE 8080
 
-# Start the service.
-CMD ["npm", "start"]
+# Run the web service on container startup.
+CMD [ "node", "asr-server.js" ]
