@@ -28,9 +28,9 @@ async def init_db() -> None:
 
 
 class AudioTranscriptions:
-    @staticmethod
-    def get_collection() -> firestore.AsyncCollectionReference:
+    @classmethod
+    def get_collection(cls) -> firestore.AsyncCollectionReference:
         """Return the collection used to store transcription jobs."""
 
         client = get_firestore_client()
-        return client.collection(Self.__name__)
+        return client.collection(cls.__name__)
