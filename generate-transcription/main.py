@@ -1,6 +1,6 @@
 import functions_framework
 import logging
-import datetime
+from datetime import datetime
 
 from firebase_admin import firestore
 import firebase_admin
