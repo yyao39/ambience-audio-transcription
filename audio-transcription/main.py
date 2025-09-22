@@ -55,7 +55,7 @@ async def create_transcription_job(
     for index, audio_path in enumerate(request.audioChunkPaths):
         now = datetime.now()
         task_id = str(uuid4())
-        await collection.document(task_id).set(
+        write_result = collection.document(task_id).set(
             {
                 "jobId": job_id,
                 "userId": request.userId,
@@ -68,6 +68,7 @@ async def create_transcription_job(
                 "updatedAt": now,
             }
         )
+        logging.info("AudioTranscript at {}".format(write_result.update_time))
         task = create_http_task(
             project="ambience-audio-transcription",
             location="us-west1",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import firebase_admin
 from firebase_admin import firestore
-from google.cloud.firestore import Client
+from google.cloud.firestore import Client, CollectionReference
 
 app = firebase_admin.initialize_app()
 firestore_client = firestore.client(database_id="ambience")
@@ -26,7 +26,7 @@ async def init_db() -> None:
 
 class AudioTranscriptions:
     @classmethod
-    def get_collection(cls) -> firestore.CollectionReference:
+    def get_collection(cls) -> CollectionReference:
         """Return the collection used to store transcription jobs."""
 
         client = get_firestore_client()
