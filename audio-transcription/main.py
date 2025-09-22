@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
+from google.cloud.firestore import DocumentSnapshot
 
 from .database import AudioTranscriptions, init_db
 from .models import ChunkStatus, JobStatus
@@ -115,12 +116,19 @@ async def search_transcripts(
     results = (
         query.order_by(
             "createdAt",
-            direction=firestore.Query.DESCENDING
+            direction=firestore.Query.DESCENDING,
         ).get()
     )
 
-    jobs: List[TranscriptResult] = []
+    job_to_chunk_transcripts: Dict[str, List[DocumentSnapshot]] = {}
+    for row in results:
+        job_id = row.get("jobId")
+        if job_id not in job_to_chunk_transcripts:
+            job_to_chunk_transcripts[job_id] = []
+        job_to_chunk_transcripts[job_id].append(row)
+
+    transcript_results: List[TranscriptResult] = []
     logging.info("search_transcripts returns: {}".format(results))
-    for snapshot in results:
-        jobs.append(build_transcript_result(snapshot))
-    return jobs
+    for job_id, chunk_transcripts in job_to_chunk_transcripts.items():
+        transcript_results.append(build_transcript_result(chunk_transcripts))
+    return transcript_results
